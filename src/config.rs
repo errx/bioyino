@@ -45,6 +45,9 @@ impl Default for System {
             stats_interval: 10000,
             task_queue_size: 2048,
             stats_prefix: "resources.monitoring.bioyino".to_string(),
+            update_counter_prefix: "resources.monitoring.bioyino.upd_cnt.".to_string(),
+            update_counter_threshold: 200,
+
         }
     }
 }

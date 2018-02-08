@@ -140,6 +140,8 @@ fn main() {
         stats_interval: s_interval,
         task_queue_size,
         stats_prefix,
+        update_counter_prefix,
+        update_counter_threshold,
     } = system;
 
     let verbosity = Level::from_str(&verbosity).expect("bad verbosity");
@@ -414,6 +416,9 @@ fn main() {
                                 let writer = conn.framed(CarbonCodec);
                                 let aggregated = metrics.into_iter().flat_map(move |(name, value)|{
                                     let ts = ts.clone();
+                                    if value.update_counter > update_counter_threshold {
+                                        // TODO add metric here
+                                    }
                                     value.into_iter().map(move |(suffix, value)|{
                                         (name.clone() + suffix, value, ts.clone())
                                     })

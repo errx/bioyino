@@ -416,12 +416,15 @@ fn main() {
                                 let writer = conn.framed(CarbonCodec);
                                 let aggregated = metrics.into_iter().flat_map(move |(name, value)|{
                                     let ts = ts.clone();
-                                    if value.update_counter > update_counter_threshold {
-                                        // TODO add metric here
-                                    }
+                                    let upd = if value.update_counter > update_counter_threshold {
+                                       Some(update_counter_prefix + name.clone(), value.update_counter, ts.clone())
+                                    } else {
+                                        None
+                                    };
                                     value.into_iter().map(move |(suffix, value)|{
                                         (name.clone() + suffix, value, ts.clone())
-                                    })
+                                    }).chain(upd)
+
                                 })
                                 .inspect(|_|{
                                     EGRESS.fetch_add(1, Ordering::Relaxed);

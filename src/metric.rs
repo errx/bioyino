@@ -8,6 +8,9 @@ use failure::Error;
 
 use protocol_capnp::metric as cmetric;
 use Float;
+use hyperloglog::HyperLogLog;
+use std::hash::Hash;
+use std::hash::Hasher;
 
 #[derive(Fail, Debug)]
 pub enum MetricError {
@@ -26,6 +29,15 @@ pub enum MetricError {
     #[fail(display = "schema error: {}", _0)]
     CapnpSchema(capnp::NotInSchema),
 }
+
+impl Hash for Float {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.to_bits())
+    }
+}
+
+
+
 
 // Percentile counter. Not safe. Requires at least two elements in vector
 // vector must be sorted
@@ -64,6 +76,7 @@ where
     DiffCounter(F),
     Timer(Vec<F>),
     Gauge(Option<i8>),
+    Set(HyperLogLog<Float>)
     //    Histogram,
     //    Set(HashSet<MetricValue>),
 }
@@ -155,9 +168,11 @@ where
                 self.value = new.value;
                 agg.append(agg2);
             }
-            //(&mut Set(ref mut set), Set(_)) => {
-            //    set.insert(new.value);
-            //}
+            (&mut Set(ref mut hll), Set(_)) => {
+                self.value = new.value; // XXX ???
+                hll.add(new.value);
+            }
+
             (_m1, _m2) => {
                 return Err(MetricError::Aggregating.into());
             }
@@ -171,6 +186,7 @@ where
         let name = reader.get_name().map_err(MetricError::Capnp)?.into();
         let value = reader.get_value();
 
+        // TODO
         let mtype = reader.get_type().map_err(MetricError::Capnp)?;
         use protocol_capnp::metric_type;
         let mtype = match mtype.which().map_err(MetricError::CapnpSchema)? {
@@ -408,6 +424,7 @@ where
                     _ => None,
                 }
             }
+            &MetricType::Set(ref hll) if self.count == 0 => Some(("", hll.len().into())),
             _ => None,
         };
         self.count += 1;

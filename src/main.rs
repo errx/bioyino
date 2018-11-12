@@ -41,6 +41,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate ftoa;
 extern crate serde_json;
+extern crate hyperloglog;
 
 pub mod bigint;
 pub mod carbon;

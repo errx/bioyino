@@ -78,7 +78,11 @@ use futures::{Future, IntoFuture, Stream};
 use tokio::runtime::current_thread::Runtime;
 use tokio::timer::{Delay, Interval};
 
-use udp::{start_async_udp, start_sync_udp};
+
+#[cfg(target_os = "linux")]
+use udp::start_sync_udp;
+
+use udp::start_async_udp;
 
 use carbon::CarbonBackend;
 use config::{Command, Consul, Metrics, Network, System};
@@ -508,32 +512,49 @@ fn main() {
         }));
     }
 
-    if multimessage {
-        start_sync_udp(
-            log,
-            listen,
-            &chans,
-            config.clone(),
-            n_threads,
-            bufsize,
-            mm_packets,
-            mm_async,
-            mm_timeout,
-            flush_flags.clone(),
-        );
-    } else {
-        start_async_udp(
-            log,
-            listen,
-            &chans,
-            config.clone(),
-            n_threads,
-            greens,
-            async_sockets,
-            bufsize,
-            flush_flags.clone(),
-        );
+    #[cfg(target_os = "linux")]
+    {
+        if multimessage {
+            start_sync_udp(
+                log,
+                listen,
+                &chans,
+                config.clone(),
+                n_threads,
+                bufsize,
+                mm_packets,
+                mm_async,
+                mm_timeout,
+                flush_flags.clone(),
+            );
+        } else {
+            start_async_udp(
+                log,
+                listen,
+                &chans,
+                config.clone(),
+                n_threads,
+                greens,
+                async_sockets,
+                bufsize,
+                flush_flags.clone(),
+            );
+        }
     }
+
+    #[cfg(not(target_os = "linux"))]
+    start_async_udp(
+        log,
+        listen,
+        &chans,
+        config.clone(),
+        n_threads,
+        greens,
+        async_sockets,
+        bufsize,
+        flush_flags.clone(),
+    );
+
 
     runtime
         .block_on(empty::<(), ()>())

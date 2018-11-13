@@ -1,29 +1,43 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::hash::Hasher;
+
+#[cfg(target_os = "linux")]
 use std::io;
-use std::net::SocketAddr;
+#[cfg(target_os = "linux")]
 use std::ptr::null_mut;
-use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(target_os = "linux")]
+use {DROPS, INGRESS};
+#[cfg(target_os = "linux")]
+use bytes::BufMut;
+#[cfg(target_os = "linux")]
+use std::collections::hash_map::DefaultHasher;
+#[cfg(target_os = "linux")]
+use std::hash::Hasher;
+#[cfg(target_os = "linux")]
+use std::os::unix::io::AsRawFd;
+#[cfg(target_os = "linux")]
+use std::sync::atomic::Ordering;
+
+use std::net::SocketAddr;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::thread;
 
 use config::System;
 use server::StatsdServer;
 use task::Task;
-use {DROPS, INGRESS};
 
-use bytes::{BufMut, BytesMut};
+
+use bytes::BytesMut;
 use futures::future::empty;
 use futures::sync::mpsc::Sender;
 use futures::IntoFuture;
 use net2::unix::UnixUdpBuilderExt;
 use net2::UdpBuilder;
 use slog::Logger;
-use std::os::unix::io::AsRawFd;
 use tokio::net::UdpSocket;
 use tokio::runtime::current_thread::Runtime;
 
+#[cfg(target_os = "linux")]
 pub(crate) fn start_sync_udp(
     log: Logger,
     listen: SocketAddr,

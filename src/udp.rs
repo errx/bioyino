@@ -1,29 +1,24 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::hash::Hasher;
-use std::io;
 use std::net::SocketAddr;
-use std::ptr::null_mut;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::thread;
 
 use config::System;
 use server::StatsdServer;
 use task::Task;
-use {DROPS, INGRESS};
 
-use bytes::{BufMut, BytesMut};
+use bytes::BytesMut;
 use futures::future::empty;
 use futures::sync::mpsc::Sender;
 use futures::IntoFuture;
 use net2::unix::UnixUdpBuilderExt;
 use net2::UdpBuilder;
 use slog::Logger;
-use std::os::unix::io::AsRawFd;
 use tokio::net::UdpSocket;
 use tokio::runtime::current_thread::Runtime;
 
+#[cfg(target_os = "linux")]
 pub(crate) fn start_sync_udp(
     log: Logger,
     listen: SocketAddr,
@@ -37,6 +32,17 @@ pub(crate) fn start_sync_udp(
     flush_flags: Arc<Vec<AtomicBool>>,
 ) {
     info!(log, "multimessage enabled, starting in sync UDP mode"; "socket-is-blocking"=>!mm_async, "packets"=>mm_packets);
+
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::Hasher;
+    use std::io;
+    use std::os::unix::io::AsRawFd;
+    use std::ptr::null_mut;
+    use std::sync::atomic::Ordering;
+
+    use bytes::BufMut;
+
+    use {DROPS, INGRESS};
 
     // It is crucial for recvmmsg to have one socket per many threads
     // to avoid drops because at lease two threads have to work on socket

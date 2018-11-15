@@ -78,7 +78,9 @@ use futures::{Future, IntoFuture, Stream};
 use tokio::runtime::current_thread::Runtime;
 use tokio::timer::{Delay, Interval};
 
-use udp::{start_async_udp, start_sync_udp};
+use udp::start_async_udp;
+#[cfg(target_os = "linux")]
+use udp::start_sync_udp;
 
 use carbon::CarbonBackend;
 use config::{Command, Consul, Metrics, Network, System};
@@ -158,9 +160,14 @@ fn main() {
                 peer_listen,
                 mgmt_listen,
                 bufsize,
+
+                #[cfg(target_os = "linux")]
                 multimessage,
+                #[cfg(target_os = "linux")]
                 mm_packets,
+                #[cfg(target_os = "linux")]
                 mm_async,
+                #[cfg(target_os = "linux")]
                 mm_timeout,
                 buffer_flush_time,
                 buffer_flush_length: _,
@@ -168,6 +175,8 @@ fn main() {
                 async_sockets,
                 nodes,
                 snapshot_interval,
+                #[cfg(not(target_os = "linux"))]
+                ..
             },
         raft,
         consul:
@@ -508,20 +517,37 @@ fn main() {
         }));
     }
 
-    if multimessage {
-        start_sync_udp(
-            log,
-            listen,
-            &chans,
-            config.clone(),
-            n_threads,
-            bufsize,
-            mm_packets,
-            mm_async,
-            mm_timeout,
-            flush_flags.clone(),
-        );
-    } else {
+    #[cfg(target_os = "linux")]
+    {
+        if multimessage {
+            start_sync_udp(
+                log,
+                listen,
+                &chans,
+                config.clone(),
+                n_threads,
+                bufsize,
+                mm_packets,
+                mm_async,
+                mm_timeout,
+                flush_flags.clone(),
+            );
+        } else {
+            start_async_udp(
+                log,
+                listen,
+                &chans,
+                config.clone(),
+                n_threads,
+                greens,
+                async_sockets,
+                bufsize,
+                flush_flags.clone(),
+            );
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
         start_async_udp(
             log,
             listen,
